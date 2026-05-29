@@ -1,0 +1,382 @@
+openapi: 3.0.0
+info:
+  title: Image Processor API
+  version: 1.0.0
+  description: Cloud-based image processing service that supports multiple transformation operations
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.imageprocessor.example.com/api
+    description: Production server
+
+tags:
+  - name: Processing
+    description: Image processing endpoints
+  - name: Retrieval
+    description: Image retrieval and metadata endpoints
+  - name: Status
+    description: Service status endpoints
+
+paths:
+  /process/transform:
+    post:
+      tags:
+        - Processing
+      summary: Transform an image with specified operations
+      description: |
+        Upload an image and apply a series of transformation operations in order.
+        
+        ## Supported Operations:
+        - **fliph** (flip_horizontal): Flip image horizontally (left-right)
+        - **flipv** (flip_vertical): Flip image vertically (top-bottom)
+        - **grayscale**: Convert image to grayscale
+        - **rotateleft** (rotate_left): Rotate 90 degrees counter-clockwise
+        - **rotateright** (rotate_right): Rotate 90 degrees clockwise
+        - **rotate**: Rotate by custom angle
+        
+        ## Supported Input Formats:
+        - JPEG/JPG
+        - PNG
+        - WebP
+        - GIF
+        - TIFF
+        
+        ## Supported Output Formats:
+        - PNG (default)
+        - JPEG
+        - WebP
+        - GIF
+        - TIFF
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Image file to process (max 50MB)
+                operations:
+                  type: string
+                  description: JSON array of operations to apply in order
+                  example: '[{"type":"fliph"},{"type":"grayscale"},{"type":"rotateright"}]'
+                outputFormat:
+                  type: string
+                  enum: [png, jpeg, webp, gif, tiff]
+                  default: png
+                  description: Desired output format
+              required:
+                - image
+                - operations
+      responses:
+        '200':
+          description: Image processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fileId:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for the processed image
+                  format:
+                    type: string
+                    description: Output image format
+                  width:
+                    type: integer
+                    description: Image width in pixels
+                  height:
+                    type: integer
+                    description: Image height in pixels
+                  sizeBytes:
+                    type: integer
+                    description: File size in bytes
+                  downloadUrl:
+                    type: string
+                    description: URL to download the processed image
+                  expiresAt:
+                    type: string
+                    format: date-time
+                    description: When the file will be automatically deleted
+                  metadata:
+                    type: object
+                    properties:
+                      operationsApplied:
+                        type: integer
+                      processingTime:
+                        type: string
+              example:
+                fileId: "550e8400-e29b-41d4-a716-446655440000"
+                format: "png"
+                width: 1920
+                height: 1080
+                sizeBytes: 2048576
+                downloadUrl: "/api/image/download/550e8400-e29b-41d4-a716-446655440000"
+                expiresAt: "2024-05-28T14:30:00Z"
+                metadata:
+                  operationsApplied: 3
+        '400':
+          description: Bad request (invalid image or operations)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /process/batch:
+    post:
+      tags:
+        - Processing
+      summary: Process multiple images with the same operations
+      description: Upload and process multiple images with identical transformation operations
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Multiple image files (max 10 files, 50MB each)
+                operations:
+                  type: string
+                  description: JSON array of operations to apply to all images
+                  example: '[{"type":"fliph"},{"type":"grayscale"}]'
+                outputFormat:
+                  type: string
+                  enum: [png, jpeg, webp, gif, tiff]
+                  default: png
+              required:
+                - images
+                - operations
+      responses:
+        '200':
+          description: Batch processing completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalImages:
+                    type: integer
+                  successCount:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        fileId:
+                          type: string
+                          format: uuid
+                        originalFilename:
+                          type: string
+                        format:
+                          type: string
+                        sizeBytes:
+                          type: integer
+                        downloadUrl:
+                          type: string
+                        expiresAt:
+                          type: string
+                          format: date-time
+                        status:
+                          type: string
+                          enum: [success, failed]
+                        error:
+                          type: string
+                          description: Error message if status is failed
+
+  /process/info:
+    get:
+      tags:
+        - Processing
+      summary: Get processing capabilities
+      description: Returns information about supported operations and formats
+      responses:
+        '200':
+          description: Service capabilities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  supportedOperations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                        description:
+                          type: string
+                        parameters:
+                          type: object
+                  supportedFormats:
+                    type: array
+                    items:
+                      type: string
+                  maxFileSize:
+                    type: string
+                  maxBatchSize:
+                    type: integer
+                  fileRetention:
+                    type: string
+
+  /image/download/{fileId}:
+    get:
+      tags:
+        - Retrieval
+      summary: Download processed image
+      description: Download a processed image by its file ID
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Image file
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Image not found or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /image/info/{fileId}:
+    get:
+      tags:
+        - Retrieval
+      summary: Get image metadata
+      description: Get metadata about a processed image
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Image metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fileId:
+                    type: string
+                    format: uuid
+                  format:
+                    type: string
+                  width:
+                    type: integer
+                  height:
+                    type: integer
+                  sizeBytes:
+                    type: integer
+                  createdAt:
+                    type: string
+                    format: date-time
+                  expiresAt:
+                    type: string
+                    format: date-time
+                  operationsApplied:
+                    type: array
+        '404':
+          description: Image not found
+
+  /image/{fileId}:
+    delete:
+      tags:
+        - Retrieval
+      summary: Delete processed image
+      description: Delete a processed image and free storage space
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Image deleted successfully
+        '404':
+          description: Image not found
+
+  /status/health:
+    get:
+      tags:
+        - Status
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  uptime:
+                    type: number
+                  environment:
+                    type: string
+
+  /status/ready:
+    get:
+      tags:
+        - Status
+      summary: Readiness check
+      responses:
+        '200':
+          description: Service is ready
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
