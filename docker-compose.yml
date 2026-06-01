@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # Image Processor API
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/uploads:/app/uploads
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/status/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Optional: Simple file server for demo UI
+  demo:
+    image: halverneus/static-file-server:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - FOLDER=/public
+    volumes:
+      - ./demo:/public
+    depends_on:
+      - api
+
+volumes:
+  uploads:
+    driver: local
