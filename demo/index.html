@@ -1,641 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Processor Demo</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .card {
-            background: white;
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        }
-
-        .card h2 {
-            color: #667eea;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }
-
-        .upload-area {
-            border: 2px dashed #667eea;
-            border-radius: 8px;
-            padding: 40px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: #f8f9ff;
-        }
-
-        .upload-area:hover {
-            border-color: #764ba2;
-            background: #f0f2ff;
-        }
-
-        .upload-area.dragover {
-            border-color: #764ba2;
-            background: #e8ebff;
-        }
-
-        .upload-area input[type="file"] {
-            display: none;
-        }
-
-        .upload-icon {
-            font-size: 3em;
-            margin-bottom: 10px;
-        }
-
-        .preview-area {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .preview-area img {
-            max-width: 100%;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-
-        .operations {
-            margin-top: 20px;
-        }
-
-        .operation-group {
-            margin-bottom: 20px;
-        }
-
-        .operation-group label {
-            display: block;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-        }
-
-        .checkbox-item input[type="checkbox"] {
-            margin-right: 10px;
-            cursor: pointer;
-            width: 18px;
-            height: 18px;
-        }
-
-        .checkbox-item label {
-            margin: 0;
-            cursor: pointer;
-            font-weight: normal;
-            flex: 1;
-        }
-
-        .format-select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 1em;
-            margin-top: 10px;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        button {
-            flex: 1;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-process {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-process:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-process:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .btn-clear {
-            background: #f0f0f0;
-            color: #333;
-        }
-
-        .btn-clear:hover {
-            background: #e0e0e0;
-        }
-
-        .btn-download {
-            background: #10b981;
-            color: white;
-        }
-
-        .btn-download:hover {
-            background: #059669;
-        }
-
-        .results-area {
-            display: none;
-            margin-top: 30px;
-        }
-
-        .result-item {
-            background: #f8f9ff;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            border-left: 4px solid #667eea;
-        }
-
-        .result-image {
-            max-width: 100%;
-            max-height: 400px;
-            border-radius: 5px;
-            margin: 15px 0;
-        }
-
-        .result-info {
-            font-size: 0.9em;
-            color: #666;
-            margin-top: 10px;
-        }
-
-        .result-info div {
-            margin: 5px 0;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .error-message {
-            background: #fee;
-            color: #c33;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 15px;
-            display: none;
-            border-left: 4px solid #c33;
-        }
-
-        .success-message {
-            background: #efe;
-            color: #3c3;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 15px;
-            display: none;
-            border-left: 4px solid #3c3;
-        }
-
-        .info-box {
-            background: #e3f2fd;
-            border-left: 4px solid #2196F3;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-size: 0.9em;
-            color: #1565c0;
-        }
-
-        .operations-list {
-            background: #f5f5f5;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 10px;
-            font-size: 0.9em;
-        }
-
-        .operations-list div {
-            padding: 5px 0;
-            color: #333;
-        }
-
-        .operation-badge {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 3px;
-            margin: 3px 3px 3px 0;
-            font-size: 0.85em;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Processor Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; color: #333; padding: 20px; }
+    .page { max-width: 700px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+    h1 { margin-bottom: 10px; font-size: 1.6rem; }
+    p { margin-bottom: 16px; }
+    label { display: block; margin: 12px 0 4px; }
+    input[type=file], select, button { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+    button { background: #4a90e2; color: #fff; border: none; margin-top: 16px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    #messages { margin-top: 16px; }
+    #result { margin-top: 24px; display: none; }
+    #result img { max-width: 100%; border-radius: 6px; margin-top: 12px; }
+    .info { margin-top: 8px; font-size: .95rem; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🖼️ Image Processor</h1>
-            <p>Transform your images with simple, powerful operations</p>
-        </div>
+  <div class="page">
+    <h1>Image Processor Demo</h1>
+    <p>Upload an image, choose operations, and press Process.</p>
 
-        <div class="main-content">
-            <!-- Upload and Controls -->
-            <div class="card">
-                <h2>Upload & Transform</h2>
+    <label for="imageInput">Image file</label>
+    <input type="file" id="imageInput" accept="image/*">
 
-                <div class="info-box">
-                    Max file size: 50MB | Supported formats: JPEG, PNG, WebP, GIF, TIFF
-                </div>
+    <label>Operations</label>
+    <label><input type="checkbox" value="fliph" class="op"> Flip horizontal</label>
+    <label><input type="checkbox" value="flipv" class="op"> Flip vertical</label>
+    <label><input type="checkbox" value="grayscale" class="op"> Grayscale</label>
+    <label><input type="checkbox" value="rotateleft" class="op"> Rotate left</label>
+    <label><input type="checkbox" value="rotateright" class="op"> Rotate right</label>
 
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-icon">📁</div>
-                    <p><strong>Drag and drop your image here</strong></p>
-                    <p style="color: #999; font-size: 0.9em;">or click to browse</p>
-                    <input type="file" id="imageInput" accept="image/*">
-                </div>
+    <label for="outputFormat">Output format</label>
+    <select id="outputFormat">
+      <option value="png">PNG</option>
+      <option value="jpeg">JPEG</option>
+      <option value="webp">WebP</option>
+      <option value="gif">GIF</option>
+      <option value="tiff">TIFF</option>
+    </select>
 
-                <div class="preview-area" id="previewArea">
-                    <img id="previewImage" alt="Preview">
-                    <button class="btn-clear" onclick="clearImage()">Change Image</button>
-                </div>
+    <button id="processButton" disabled>Process Image</button>
 
-                <div class="operations">
-                    <div class="operation-group">
-                        <label>Transformations</label>
-                        <div class="checkbox-group">
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="flipH" value="fliph">
-                                <label for="flipH">Flip Horizontal</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="flipV" value="flipv">
-                                <label for="flipV">Flip Vertical</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="grayscale" value="grayscale">
-                                <label for="grayscale">Convert to Grayscale</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="rotateLeft" value="rotateleft">
-                                <label for="rotateLeft">Rotate Left (90°)</label>
-                            </div>
-                            <div class="checkbox-item">
-                                <input type="checkbox" id="rotateRight" value="rotateright">
-                                <label for="rotateRight">Rotate Right (90°)</label>
-                            </div>
-                        </div>
-                    </div>
+    <div id="messages"></div>
 
-                    <div class="operation-group">
-                        <label for="outputFormat">Output Format</label>
-                        <select id="outputFormat" class="format-select">
-                            <option value="png">PNG</option>
-                            <option value="jpeg">JPEG</option>
-                            <option value="webp">WebP</option>
-                            <option value="gif">GIF</option>
-                            <option value="tiff">TIFF</option>
-                        </select>
-                    </div>
-
-                    <div id="selectedOpsDisplay" class="operations-list" style="display: none;">
-                        <strong>Operations to apply (in order):</strong>
-                        <div id="selectedOpsContainer"></div>
-                    </div>
-
-                    <div class="button-group">
-                        <button class="btn-process" id="processBtn" onclick="processImage()" disabled>
-                            Process Image
-                        </button>
-                    </div>
-
-                    <div class="loading" id="loading">
-                        <div class="spinner"></div>
-                        <p style="margin-top: 10px; color: #667eea;">Processing...</p>
-                    </div>
-
-                    <div class="error-message" id="errorMessage"></div>
-                    <div class="success-message" id="successMessage"></div>
-                </div>
-            </div>
-
-            <!-- Results -->
-            <div class="card">
-                <h2>Result</h2>
-                <div class="results-area" id="resultsArea">
-                    <div class="result-item">
-                        <div>
-                            <strong>Processed Image:</strong>
-                            <img id="resultImage" class="result-image" alt="Processed result">
-                        </div>
-                        <div class="result-info">
-                            <div><strong>File ID:</strong> <span id="resultFileId" style="font-family: monospace; font-size: 0.85em;"></span></div>
-                            <div><strong>Format:</strong> <span id="resultFormat"></span></div>
-                            <div><strong>Dimensions:</strong> <span id="resultDimensions"></span></div>
-                            <div><strong>File Size:</strong> <span id="resultSize"></span></div>
-                            <div><strong>Expires:</strong> <span id="resultExpiry"></span></div>
-                        </div>
-                        <div class="button-group" style="margin-top: 15px;">
-                            <button class="btn-download" onclick="downloadImage()">
-                                ⬇️ Download Image
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div style="text-align: center; color: #999; padding: 40px; display: none;" id="emptyState">
-                    <p>Processed images will appear here</p>
-                </div>
-            </div>
-        </div>
+    <div id="result">
+      <h2>Result</h2>
+      <img id="resultImage" alt="Processed image">
+      <div class="info"><strong>File ID:</strong> <span id="resultFileId"></span></div>
+      <div class="info"><strong>Format:</strong> <span id="resultFormat"></span></div>
+      <div class="info"><strong>Dimensions:</strong> <span id="resultDimensions"></span></div>
+      <div class="info"><strong>Size:</strong> <span id="resultSize"></span></div>
+      <div class="info"><strong>Expires:</strong> <span id="resultExpiry"></span></div>
+      <a id="downloadLink" href="#" download style="display: inline-block; margin-top: 12px;">Download result</a>
     </div>
+  </div>
 
-    <script>
-        // Global state
-        let selectedImage = null;
-        let processedImageData = null;
+  <script>
+    const API_BASE = 'http://localhost:3000/api';
+    const imageInput = document.getElementById('imageInput');
+    const processButton = document.getElementById('processButton');
+    const messages = document.getElementById('messages');
+    const result = document.getElementById('result');
+    const resultImage = document.getElementById('resultImage');
+    const resultFileId = document.getElementById('resultFileId');
+    const resultFormat = document.getElementById('resultFormat');
+    const resultDimensions = document.getElementById('resultDimensions');
+    const resultSize = document.getElementById('resultSize');
+    const resultExpiry = document.getElementById('resultExpiry');
+    const downloadLink = document.getElementById('downloadLink');
+    const opCheckboxes = Array.from(document.querySelectorAll('.op'));
 
-        // API configuration
-        const API_BASE = 'http://localhost:3000/api';
+    let selectedFile = null;
+    let lastResult = null;
 
-        // DOM elements
-        const uploadArea = document.getElementById('uploadArea');
-        const imageInput = document.getElementById('imageInput');
-        const previewArea = document.getElementById('previewArea');
-        const previewImage = document.getElementById('previewImage');
-        const processBtn = document.getElementById('processBtn');
-        const loading = document.getElementById('loading');
-        const errorMessage = document.getElementById('errorMessage');
-        const successMessage = document.getElementById('successMessage');
-        const resultsArea = document.getElementById('resultsArea');
-        const emptyState = document.getElementById('emptyState');
-        const operationCheckboxes = document.querySelectorAll('input[type="checkbox"]');
-        const selectedOpsDisplay = document.getElementById('selectedOpsDisplay');
-        const selectedOpsContainer = document.getElementById('selectedOpsContainer');
+    imageInput.addEventListener('change', () => {
+      selectedFile = imageInput.files[0] || null;
+      updateButton();
+      clearMessages();
+    });
 
-        // Event listeners
-        uploadArea.addEventListener('click', () => imageInput.click());
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-        uploadArea.addEventListener('drop', handleDrop);
-        imageInput.addEventListener('change', handleImageSelect);
-        operationCheckboxes.forEach(cb => cb.addEventListener('change', updateSelectedOps));
+    opCheckboxes.forEach(cb => cb.addEventListener('change', updateButton));
+    processButton.addEventListener('click', processImage);
 
-        function handleDrop(e) {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                imageInput.files = files;
-                handleImageSelect();
-            }
+    function updateButton() {
+      const hasOps = opCheckboxes.some(cb => cb.checked);
+      processButton.disabled = !selectedFile || !hasOps;
+    }
+
+    async function processImage() {
+      if (!selectedFile) return;
+      const ops = opCheckboxes.filter(cb => cb.checked).map(cb => ({ type: cb.value }));
+      if (!ops.length) {
+        showMessage('Select at least one operation.', true);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('image', selectedFile);
+      formData.append('operations', JSON.stringify(ops));
+      formData.append('outputFormat', document.getElementById('outputFormat').value);
+
+      showMessage('Processing...', false);
+      processButton.disabled = true;
+
+      try {
+        const response = await fetch(`${API_BASE}/process/transform`, { method: 'POST', body: formData });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Processing failed');
         }
+        const data = await response.json();
+        lastResult = data;
+        await showResult(data);
+        showMessage('Done.', false);
+      } catch (err) {
+        showMessage(err.message, true);
+      } finally {
+        processButton.disabled = false;
+      }
+    }
 
-        function handleImageSelect() {
-            const file = imageInput.files[0];
-            if (file) {
-                selectedImage = file;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImage.src = e.target.result;
-                    previewArea.style.display = 'block';
-                    uploadArea.style.display = 'none';
-                    updateProcessBtn();
-                };
-                reader.readAsDataURL(file);
-            }
-        }
+    async function showResult(data) {
+      const imageResponse = await fetch(`${API_BASE}/image/download/${data.fileId}`);
+      const blob = await imageResponse.blob();
+      resultImage.src = URL.createObjectURL(blob);
+      resultFileId.textContent = data.fileId;
+      resultFormat.textContent = data.format;
+      resultDimensions.textContent = `${data.width} × ${data.height}`;
+      resultSize.textContent = `${Math.round(data.sizeBytes / 1024)} KB`;
+      resultExpiry.textContent = new Date(data.expiresAt).toLocaleString();
+      downloadLink.href = `${API_BASE}/image/download/${data.fileId}`;
+      downloadLink.download = `result.${data.format}`;
+      result.style.display = 'block';
+    }
 
-        function clearImage() {
-            selectedImage = null;
-            imageInput.value = '';
-            previewArea.style.display = 'none';
-            uploadArea.style.display = 'block';
-            resultsArea.style.display = 'none';
-            emptyState.style.display = 'block';
-            updateProcessBtn();
-            hideMessages();
-        }
+    function showMessage(text, isError) {
+      messages.textContent = text;
+      messages.style.color = isError ? '#a00' : '#080';
+    }
 
-        function updateSelectedOps() {
-            const selected = Array.from(operationCheckboxes)
-                .filter(cb => cb.checked)
-                .map(cb => cb.value);
-
-            if (selected.length > 0) {
-                selectedOpsDisplay.style.display = 'block';
-                selectedOpsContainer.innerHTML = selected
-                    .map(op => `<span class="operation-badge">${formatOpName(op)}</span>`)
-                    .join('');
-            } else {
-                selectedOpsDisplay.style.display = 'none';
-            }
-
-            updateProcessBtn();
-        }
-
-        function formatOpName(opValue) {
-            const opNames = {
-                'fliph': 'Flip H',
-                'flipv': 'Flip V',
-                'grayscale': 'Grayscale',
-                'rotateleft': 'Rotate ↶',
-                'rotateright': 'Rotate ↷'
-            };
-            return opNames[opValue] || opValue;
-        }
-
-        function updateProcessBtn() {
-            const hasImage = selectedImage !== null;
-            const hasOps = Array.from(operationCheckboxes).some(cb => cb.checked);
-            processBtn.disabled = !hasImage || !hasOps;
-        }
-
-        async function processImage() {
-            if (!selectedImage || !Array.from(operationCheckboxes).some(cb => cb.checked)) {
-                showError('Please select an image and at least one operation');
-                return;
-            }
-
-            hideMessages();
-            loading.style.display = 'block';
-            processBtn.disabled = true;
-
-            try {
-                // Build operations array
-                const operations = Array.from(operationCheckboxes)
-                    .filter(cb => cb.checked)
-                    .map(cb => ({ type: cb.value }));
-
-                const outputFormat = document.getElementById('outputFormat').value;
-
-                // Create FormData
-                const formData = new FormData();
-                formData.append('image', selectedImage);
-                formData.append('operations', JSON.stringify(operations));
-                formData.append('outputFormat', outputFormat);
-
-                // Send request
-                const response = await fetch(`${API_BASE}/process/transform`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Processing failed');
-                }
-
-                const result = await response.json();
-                processedImageData = result;
-
-                // Download and display the result
-                await displayResult(result);
-
-                showSuccess('Image processed successfully!');
-
-            } catch (error) {
-                showError('Error: ' + error.message);
-                console.error(error);
-            } finally {
-                loading.style.display = 'none';
-                processBtn.disabled = false;
-            }
-        }
-
-        async function displayResult(data) {
-            // Download the processed image
-            const imageResponse = await fetch(`${API_BASE}/image/download/${data.fileId}`);
-            const imageBlob = await imageResponse.blob();
-            const imageUrl = URL.createObjectURL(imageBlob);
-
-            // Update UI
-            document.getElementById('resultImage').src = imageUrl;
-            document.getElementById('resultFileId').textContent = data.fileId;
-            document.getElementById('resultFormat').textContent = data.format.toUpperCase();
-            document.getElementById('resultDimensions').textContent = `${data.width} × ${data.height}px`;
-            document.getElementById('resultSize').textContent = formatBytes(data.sizeBytes);
-            document.getElementById('resultExpiry').textContent = new Date(data.expiresAt).toLocaleString();
-
-            resultsArea.style.display = 'block';
-            emptyState.style.display = 'none';
-        }
-
-        function downloadImage() {
-            if (!processedImageData) return;
-
-            const link = document.createElement('a');
-            link.href = `${API_BASE}/image/download/${processedImageData.fileId}`;
-            link.download = `image-${processedImageData.fileId}.${processedImageData.format}`;
-            link.click();
-        }
-
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-        }
-
-        function showError(message) {
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
-            successMessage.style.display = 'none';
-        }
-
-        function showSuccess(message) {
-            successMessage.textContent = message;
-            successMessage.style.display = 'block';
-            errorMessage.style.display = 'none';
-        }
-
-        function hideMessages() {
-            errorMessage.style.display = 'none';
-            successMessage.style.display = 'none';
-        }
-
-        // Initialize
-        emptyState.style.display = 'block';
-    </script>
+    function clearMessages() {
+      messages.textContent = '';
+    }
+  </script>
 </body>
 </html>
