@@ -13,6 +13,10 @@ npm start
 
 2. Open `demo/index.html` in your browser.
 
+“Start the backend first, then open index.html in a browser”
+
+The backend is designed to run as a web API and can be deployed to cloud or container platforms by using environment-configured storage and retention settings.
+
 ## What it does
 
 - Flip horizontal / vertical

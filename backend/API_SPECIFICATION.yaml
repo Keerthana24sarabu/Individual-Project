@@ -267,6 +267,14 @@ paths:
               schema:
                 type: string
                 format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/tiff:
+              schema:
+                type: string
+                format: binary
         '404':
           description: Image not found or expired
           content:
@@ -313,9 +321,9 @@ paths:
                     type: string
                     format: date-time
                   operationsApplied:
-                    type: array
+                    type: integer
         '404':
-          description: Image not found
+          description: Image not found or expired
 
   /image/{fileId}:
     delete:
@@ -333,6 +341,15 @@ paths:
       responses:
         '200':
           description: Image deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
         '404':
           description: Image not found
 

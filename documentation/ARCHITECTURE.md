@@ -25,4 +25,6 @@ This project is a simple image processing service.
 
 ## Storage
 
-Images are stored on disk in `backend/uploads` and kept for a short time.
+Images are stored on disk in `backend/uploads` by default, with processed file metadata persisted to a local metadata store.
+
+The storage manager is designed to be replaceable with a cloud object store such as AWS S3 or Azure Blob Storage, and it supports configurable retention windows so temporary files are not kept indefinitely.

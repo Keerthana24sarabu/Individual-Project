@@ -12,6 +12,17 @@ npm start
 
 The server listens on `http://localhost:3000`.
 
+## Configuration
+
+The backend supports the following environment variables:
+
+- `PORT` - server port
+- `NODE_ENV` - environment mode
+- `STORAGE_PATH` - local or mounted directory for uploaded and processed images
+- `MAX_FILE_SIZE` - maximum upload size
+- `FILE_RETENTION_HOURS` - how long processed files are kept
+- `CORS_ORIGIN` - allowed origins for browser clients
+
 ## API
 
 - `POST /api/process/transform`

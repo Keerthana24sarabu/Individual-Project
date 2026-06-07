@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const sharp = require('sharp');
 const ImageProcessor = require('../services/ImageProcessor');
 const StorageManager = require('../services/StorageManager');
 const ValidationMiddleware = require('../middleware/validation');
@@ -68,18 +69,25 @@ router.post('/transform', upload.single('image'), async (req, res, next) => {
     const imageMetadata = await ImageProcessor.validateImage(req.file.buffer);
 
     // Process image
-    const outputFormat = req.body.outputFormat || 'png';
+    const outputFormat = (req.body.outputFormat || 'png').toLowerCase();
+    if (!ImageProcessor.getSupportedFormats().includes(outputFormat)) {
+      return res.status(400).json({ error: `Unsupported output format: ${outputFormat}` });
+    }
+
+    const startTime = Date.now();
     const processedBuffer = await ImageProcessor.processImage(
       req.file.buffer,
       operations,
       outputFormat
     );
 
+    const processedMetadata = await sharp(processedBuffer).metadata();
+
     // Store processed image
     const fileId = await StorageManager.storeImage(processedBuffer, {
       format: outputFormat,
-      width: imageMetadata.width,
-      height: imageMetadata.height,
+      width: processedMetadata.width,
+      height: processedMetadata.height,
       sourceFormat: imageMetadata.format,
       operations: operations
     });
@@ -93,14 +101,14 @@ router.post('/transform', upload.single('image'), async (req, res, next) => {
     res.json({
       fileId,
       format: outputFormat,
-      width: imageMetadata.width,
-      height: imageMetadata.height,
+      width: processedMetadata.width,
+      height: processedMetadata.height,
       sizeBytes: fileSize,
       downloadUrl: `/api/image/download/${fileId}`,
       expiresAt: storedMetadata.expiresAt,
       metadata: {
         operationsApplied: operations.length,
-        processingTime: 'N/A' // Can be enhanced with timing
+        processingTime: `${Date.now() - startTime}ms`
       }
     });
 
@@ -138,7 +146,10 @@ router.post('/batch', upload.array('images', 10), async (req, res, next) => {
     ImageProcessor.validateOperations(operations);
 
     const results = [];
-    const outputFormat = req.body.outputFormat || 'png';
+    const outputFormat = (req.body.outputFormat || 'png').toLowerCase();
+    if (!ImageProcessor.getSupportedFormats().includes(outputFormat)) {
+      return res.status(400).json({ error: `Unsupported output format: ${outputFormat}` });
+    }
 
     // Process each image
     for (const file of req.files) {
@@ -149,11 +160,12 @@ router.post('/batch', upload.array('images', 10), async (req, res, next) => {
           operations,
           outputFormat
         );
+        const processedMetadata = await sharp(processedBuffer).metadata();
 
         const fileId = await StorageManager.storeImage(processedBuffer, {
           format: outputFormat,
-          width: imageMetadata.width,
-          height: imageMetadata.height,
+          width: processedMetadata.width,
+          height: processedMetadata.height,
           sourceFormat: imageMetadata.format,
           operations: operations
         });

@@ -6,20 +6,31 @@ const fs = require('fs');
 
 const processingRoutes = require('./routes/processing');
 const statusRoutes = require('./routes/status');
+const StorageManager = require('./services/StorageManager');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(express.json({ limit: process.env.MAX_FILE_SIZE || '50mb' }));
+app.use(express.urlencoded({ limit: process.env.MAX_FILE_SIZE || '50mb', extended: true }));
 
 // Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../uploads');
+const uploadDir = path.resolve(process.env.STORAGE_PATH || path.join(__dirname, '../uploads'));
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+// Periodic cleanup for expired files
+StorageManager.cleanupExpired().catch((err) => {
+  console.error('Initial cleanup failed:', err);
+});
+setInterval(() => {
+  StorageManager.cleanupExpired().catch((err) => {
+    console.error('Scheduled cleanup failed:', err);
+  });
+}, 60 * 60 * 1000); // every hour
 
 // Routes
 app.use('/api/process', processingRoutes);

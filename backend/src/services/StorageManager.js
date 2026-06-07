@@ -7,17 +7,44 @@ const { v4: uuidv4 } = require('uuid');
  * Designed to be replaceable with cloud storage (AWS S3, Azure Blob, etc.)
  */
 class StorageManager {
-  constructor(storagePath = path.join(__dirname, '../../uploads')) {
-    this.storagePath = storagePath;
-    this.fileMetadata = new Map(); // In-memory metadata store
+  constructor(storagePath = process.env.STORAGE_PATH || path.join(__dirname, '../../uploads')) {
+    this.storagePath = path.resolve(storagePath);
+    this.metadataPath = path.join(this.storagePath, 'metadata.json');
+    this.fileMetadata = new Map();
+    this.fileRetentionHours = parseInt(process.env.FILE_RETENTION_HOURS, 10) || 24;
+
+    this._initialize().catch((error) => {
+      console.error('StorageManager initialization failed:', error);
+    });
   }
 
-  /**
-   * Store processed image
-   * @param {Buffer} imageBuffer - Image data
-   * @param {Object} metadata - Metadata to store
-   * @returns {Promise<string>} File ID (UUID)
-   */
+  async _initialize() {
+    await fs.mkdir(this.storagePath, { recursive: true });
+    await this._loadMetadata();
+    await this.cleanupExpired();
+  }
+
+  async _loadMetadata() {
+    try {
+      const data = await fs.readFile(this.metadataPath, 'utf8');
+      const records = JSON.parse(data);
+      if (Array.isArray(records)) {
+        for (const metadata of records) {
+          this.fileMetadata.set(metadata.id, metadata);
+        }
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error('Failed to load metadata file:', error);
+      }
+    }
+  }
+
+  async _persistMetadata() {
+    const records = Array.from(this.fileMetadata.values());
+    await fs.writeFile(this.metadataPath, JSON.stringify(records, null, 2), 'utf8');
+  }
+
   async storeImage(imageBuffer, metadata = {}) {
     const fileId = uuidv4();
     const filename = `${fileId}.${metadata.format || 'png'}`;
@@ -25,8 +52,9 @@ class StorageManager {
 
     try {
       await fs.writeFile(filepath, imageBuffer);
-      
-      // Store metadata
+      const now = new Date();
+      const expiresAt = metadata.expiresAt || new Date(now.getTime() + this.fileRetentionHours * 60 * 60 * 1000).toISOString();
+
       this.fileMetadata.set(fileId, {
         id: fileId,
         filename,
@@ -34,73 +62,64 @@ class StorageManager {
         format: metadata.format || 'png',
         width: metadata.width,
         height: metadata.height,
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-        ...metadata
+        createdAt: now.toISOString(),
+        expiresAt,
+        operations: metadata.operations || [],
+        sourceFormat: metadata.sourceFormat || null
       });
 
+      await this._persistMetadata();
       return fileId;
     } catch (error) {
       throw new Error(`Failed to store image: ${error.message}`);
     }
   }
 
-  /**
-   * Retrieve image file
-   * @param {string} fileId - File UUID
-   * @returns {Promise<Buffer>} Image buffer
-   */
   async getImage(fileId) {
     const metadata = this.fileMetadata.get(fileId);
-    
     if (!metadata) {
       throw new Error(`Image not found: ${fileId}`);
     }
 
-    // Check if file has expired
     if (new Date(metadata.expiresAt) < new Date()) {
       await this.deleteImage(fileId);
       throw new Error(`Image has expired: ${fileId}`);
     }
 
     try {
-      const imageBuffer = await fs.readFile(metadata.filepath);
-      return imageBuffer;
+      return await fs.readFile(metadata.filepath);
     } catch (error) {
       throw new Error(`Failed to retrieve image: ${error.message}`);
     }
   }
 
-  /**
-   * Get image metadata
-   * @param {string} fileId - File UUID
-   * @returns {Object} Image metadata
-   */
   getMetadata(fileId) {
     const metadata = this.fileMetadata.get(fileId);
-    
     if (!metadata) {
       throw new Error(`Image metadata not found: ${fileId}`);
+    }
+
+    if (new Date(metadata.expiresAt) < new Date()) {
+      throw new Error(`Image has expired: ${fileId}`);
     }
 
     return metadata;
   }
 
-  /**
-   * Delete image file
-   * @param {string} fileId - File UUID
-   * @returns {Promise<boolean>}
-   */
   async deleteImage(fileId) {
     const metadata = this.fileMetadata.get(fileId);
-    
     if (!metadata) {
       return false;
     }
 
     try {
-      await fs.unlink(metadata.filepath);
+      await fs.unlink(metadata.filepath).catch((error) => {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+      });
       this.fileMetadata.delete(fileId);
+      await this._persistMetadata();
       return true;
     } catch (error) {
       console.error(`Failed to delete image ${fileId}:`, error);
@@ -108,32 +127,25 @@ class StorageManager {
     }
   }
 
-  /**
-   * Clean up expired files
-   * @returns {Promise<number>} Number of deleted files
-   */
   async cleanupExpired() {
-    let deletedCount = 0;
     const now = new Date();
+    const expiredIds = [];
 
     for (const [fileId, metadata] of this.fileMetadata.entries()) {
       if (new Date(metadata.expiresAt) < now) {
-        const deleted = await this.deleteImage(fileId);
-        if (deleted) deletedCount++;
+        expiredIds.push(fileId);
       }
     }
 
-    return deletedCount;
+    for (const fileId of expiredIds) {
+      await this.deleteImage(fileId);
+    }
+
+    return expiredIds.length;
   }
 
-  /**
-   * Get file size
-   * @param {string} fileId - File UUID
-   * @returns {Promise<number>} File size in bytes
-   */
   async getFileSize(fileId) {
     const metadata = this.fileMetadata.get(fileId);
-    
     if (!metadata) {
       throw new Error(`Image not found: ${fileId}`);
     }
@@ -146,10 +158,6 @@ class StorageManager {
     }
   }
 
-  /**
-   * List all stored images (admin function)
-   * @returns {Array<Object>} List of image metadata
-   */
   listImages() {
     return Array.from(this.fileMetadata.values());
   }
